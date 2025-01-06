@@ -2,10 +2,10 @@ const express = require('express');
 const morgan = require('morgan');
 const helmet = require('helmet');
 const cors = require('cors');
-
+const { swaggerDocs, swaggerUi } = require('./utils/swagger.js');
 require('dotenv').config();
 
-const middlewares = require('./middlewares');
+const middlewares = require('./middleware/middlewares');
 const api = require('./api');
 
 const app = express();
@@ -15,9 +15,12 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+
 app.get('/', (req, res) => {
   res.json({
-    message: 'Hey welcome',
+    message: `Swagger Docs available here in below link`,
+    links:"http://localhost:5000/api-docs"
   });
 });
 

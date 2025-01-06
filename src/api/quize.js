@@ -1,5 +1,6 @@
 const express = require('express');
-
+const { validate } = require('../middleware/middlewares.js');
+const { quizSchema, submitQuizSchema, paramsSchema } = require('../validation/quize_validation.js');
 const router = express.Router();
 // In-memory storage for quizzes and results
 let quizzes = [];
@@ -7,8 +8,42 @@ let results = [];
 
 // Helper function to find a quiz by ID
 const findQuizById = (id) => quizzes.find(quiz => quiz.id === id);
-
-router.post('/quizzes', (req, res) => {
+/**
+ * @swagger
+ * /quizzes:
+ *   post:
+ *     summary: Create a new quiz
+ *     tags: [Quizzes]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           example:
+ *             id: 1
+ *             title: "Sample Quiz"
+ *             questions:
+ *               - id: 1
+ *                 text: "What is the capital of France?"
+ *                 options: ["Paris", "Berlin", "Madrid","Delhi"]
+ *                 correct_option: 0
+ *     responses:
+ *       201:
+ *         description: Quiz created successfully
+ *         content:
+ *           application/json:
+ *             example:
+ *               quizzes:
+ *                 - id: 1
+ *                   title: "Sample Quiz"
+ *                   questions:
+ *                     - id: 1
+ *                       text: "What is the capital of France?"
+ *                       options: ["Paris", "Berlin", "Madrid","Delhi"]
+ *                       correct_option: 0
+ *       500:
+ *         description: Internal Server Error
+ */
+router.post('/quizzes', validate(quizSchema), (req, res) => {
   try {
     let { id, title, questions } = req.body;
     let quize = { id, title, questions };
@@ -18,7 +53,27 @@ router.post('/quizzes', (req, res) => {
     res.status(500).json({ "message": "Internal Server Error" });
   }
 });
-
+/**
+ * @swagger
+ * /quizzes/{id}:
+ *   get:
+ *     summary: Get a quiz by ID
+ *     tags: [Quizzes]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: The quiz ID
+ *     responses:
+ *       200:
+ *         description: Quiz retrieved successfully
+ *       404:
+ *         description: Quiz not found
+ *       500:
+ *         description: Internal Server Error
+ */
 router.get('/quizzes/:id', (req, res) => {
   try {
     const quizId = parseInt(req.params.id);
@@ -34,8 +89,37 @@ router.get('/quizzes/:id', (req, res) => {
     res.status(500).json({ "message": "Internal Server Error" });
   }
 });
-
-router.post('/quizzes/submit', (req, res) => {
+/**
+ * @swagger
+ * /quizzes/submit:
+ *   post:
+ *     summary: Submit a quiz answer
+ *     tags: [Quizzes]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           example:
+ *             id: 1
+ *             user_id: 1
+ *             question_id: 1
+ *             selected_option: 0
+ *     responses:
+ *       200:
+ *         description: Answer submitted successfully
+ *         content:
+ *           application/json:
+ *             example:
+ *               id: 1
+ *               user_id: 1
+ *               question_id: 1
+ *               selected_option: 0
+ *       404:
+ *         description: Quiz or question not found
+ *       500:
+ *         description: Internal Server Error
+ */
+router.post('/quizzes/submit', validate(submitQuizSchema), (req, res) => {
   try {
     let { id, user_id, question_id, selected_option } = req.body;
     const quiz = findQuizById(id);
@@ -63,11 +147,59 @@ router.post('/quizzes/submit', (req, res) => {
     res.status(500).json({ "message": "Internal Server Error" });
   }
 });
-
-router.post('/results/:quizId/:userId', (req, res) => {
+/**
+ * @swagger
+ * /results:
+ *   post:
+ *     summary: Get results for a user on a specific quiz
+ *     tags: [Results]
+ *     parameters:
+ *       - in: query
+ *         name: quizId
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: The quiz ID
+ *       - in: query
+ *         name: userId
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: The user ID
+ *     responses:
+ *       200:
+ *         description: Results retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 quizId:
+ *                   type: integer
+ *                 userId:
+ *                   type: integer
+ *                 score:
+ *                   type: integer
+ *                 answers:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       selected_option:
+ *                         type: string
+ *                       correct_option:
+ *                         type: string
+ *                       is_correct:
+ *                         type: boolean
+ *       404:
+ *         description: Results not found
+ *       500:
+ *         description: Internal Server Error
+ */
+router.post('/results', validate(paramsSchema, 'query'), (req, res) => {
   try {
-    const quizId = parseInt(req.params.quizId);
-    const userId = parseInt(req.params.userId);
+    const quizId = parseInt(req.query.quizId);
+    const userId = parseInt(req.query.userId);
     let score = 0;
     const userResults = results.filter(result => result.quiz_id === quizId && result.user_id === userId);
     let answers = [];
